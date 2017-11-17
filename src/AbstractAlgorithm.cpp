@@ -12,6 +12,12 @@
 #define HH(a, b, c, d, M, s, ti) (a = (b) + ROTATE(a + H(b, c, d) + M + ti, s))
 #define II(a, b, c, d, M, s, ti) (a = (b) + ROTATE(a + I(b, c, d) + M + ti, s))
 #define FT(b, c, d, t) (((t) >= 0 && (t) < 20) ? (((b) & (c)) | ((~(b)) & (d))) : (((t) >= 40 && (t) < 60) ? (((b) & (c)) | ((b) & (d)) | ((c) & (d))) : ((b) ^ (c) ^ (d))))
+#define Conditional(x, y, z) ((x & y) ^ ((~x) & z))
+#define Majority(x, y, z) ((x & y) ^ (x & z) ^ (y & z))
+#define LSigma_0(x) (ROTATE(x, 30) ^ ROTATE(x, 19) ^ ROTATE(x, 10))
+#define LSigma_1(x) (ROTATE(x, 26) ^ ROTATE(x, 21) ^ ROTATE(x, 7))
+#define SSigma_0(x) (ROTATE(x, 25) ^ ROTATE(x, 14) ^ (x >> 3))
+#define SSigma_1(x) (ROTATE(x, 15) ^ ROTATE(x, 13) ^ (x >> 10))
 
 AbstractAlgorithm::AbstractAlgorithm()
 {
@@ -245,6 +251,88 @@ void AbstractAlgorithm::getSHA1Value(unsigned int result[5], const char* filenam
 	getSHA1Value(result, buffer, size);
 	delete[] buffer;
 	buffer = NULL;
+}
+
+void AbstractAlgorithm::getSHA256Value(unsigned int result[8], const void* buffer, const int size)
+{
+	// alloc buffer
+	int rest = (size << 3) & 511;
+	int new_size = size;
+	if (rest <= 448)
+		new_size = ((size >> 6) + 1) << 6;
+	else
+		new_size = ((size >> 6) + 2) << 6;
+	long long bits_size = size << 3;
+	unsigned char* new_buffer = new unsigned char[new_size];
+	memcpy(new_buffer, buffer, sizeof(unsigned char) * size);
+	new_buffer[size] = 0x80;
+
+	for (int i = 0; i < new_size; i+=4)
+	{
+		int t = new_buffer[i]; new_buffer[i] = new_buffer[i + 3]; new_buffer[i + 3] = t;
+		t = new_buffer[i + 1]; new_buffer[i + 1] = new_buffer[i + 2]; new_buffer[i + 2] = t;
+	}
+	
+	unsigned int bits_int[2] = { 0 };
+	memcpy(bits_int, &bits_size, sizeof(long long));
+	memcpy(new_buffer + new_size - 4, &bits_int[0], sizeof(unsigned int));
+	memcpy(new_buffer + new_size - 8, &bits_int[1], sizeof(unsigned int));
+
+	unsigned int* buffer_int = (unsigned int*)new_buffer;
+	unsigned int W[64] = { 0 };
+	unsigned int a = 0x6A09E667, b = 0xBB67AE85, c = 0x3C6EF372, d = 0xA54FF53A;
+	unsigned int e = 0x510E527F, f = 0x9B05688C, g = 0x1F83D9AB, h = 0x5BE0CD19;
+	const unsigned int K[64] = {
+		0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+		0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+		0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+		0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+		0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+		0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+		0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+		0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+	};
+
+	for (int i = 0; i < new_size >> 2; i+=16)
+	{
+		unsigned int A = a, B = b, C = c, D = d, E = e, F = f, G = g, H = h;
+		for (int j = 0; j < 16; j++)
+			W[j] = buffer_int[i + j];
+		for (int j = 16; j < 64; j++)
+			W[j] = SSigma_1(W[j - 2]) + W[j - 7] + SSigma_0(W[j - 15]) + W[j - 16];
+		for (int j = 0; j < 64; j++)
+		{
+			unsigned int t1 = h + LSigma_1(e) + Conditional(e, f, g) + K[j] + W[j];
+			unsigned int t2 = LSigma_0(a) + Majority(a, b, c);
+			h = g;
+			g = f;
+			f = e;
+			e = d + t1;
+			d = c;
+			c = b;
+			b = a;
+			a = t1 + t2;
+		}
+		a += A;
+		b += B;
+		c += C;
+		d += D;
+		e += E;
+		f += F;
+		g += G;
+		h += H;
+	}
+
+	result[0] = a; result[1] = b; result[2] = c; result[3] = d;
+	result[4] = e; result[5] = f; result[6] = g; result[7] = h;
+
+	delete[] new_buffer;
+	new_buffer = NULL;
+}
+
+void AbstractAlgorithm::getSHA256Value(unsigned int result[8], const char* filename)
+{
+
 }
 
 void AbstractAlgorithm::initCRC32Table()

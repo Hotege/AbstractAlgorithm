@@ -13,6 +13,8 @@ public:
 	void getMD5Value(unsigned int result[4], const char* filename);
 	void getSHA1Value(unsigned int result[5], const void* buffer, const int size);
 	void getSHA1Value(unsigned int result[5], const char* filename);
+	void getSHA256Value(unsigned int result[8], const void* buffer, const int size);
+	void getSHA256Value(unsigned int result[8], const char* filename);
 private:
 	void initCRC32Table();
 

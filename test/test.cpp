@@ -24,15 +24,14 @@ int main(int argc, char* argv[])
 	printf("SHA1 value of \"%s\":   ", string);
 	unsigned int sha1[5] = { 0 };
 	aa.getSHA1Value(sha1, (unsigned char*)string, strlen(string));
-	unsigned char sha1_byte[20] = { 0 };
-	memcpy(sha1_byte, sha1, sizeof(unsigned int) * 5);
-	for (int i = 0; i < 20; i+=4)
-	{
-		unsigned char t = sha1_byte[i]; sha1_byte[i] = sha1_byte[i + 3]; sha1_byte[i + 3] = t;
-		t = sha1_byte[i + 1]; sha1_byte[i + 1] = sha1_byte[i + 2]; sha1_byte[i + 2] = t;
-	}
-	for (int i = 0; i < 20; i++)
-		printf("%02X ", sha1_byte[i]);
+	for (int i = 0; i < 5; i++)
+		printf("%08X ", sha1[i]);
+	printf("\n");
+	unsigned int sha256[8] = { 0 };
+	aa.getSHA256Value(sha256, (unsigned char*)string, strlen(string));
+	printf("SHA256 value of \"%s\": ", string);
+	for (int i = 0; i < 8; i++)
+		printf("%08X ", sha256[i]);
 	printf("\n");
 	return 0;
 }
